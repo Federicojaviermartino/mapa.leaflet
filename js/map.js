@@ -1,8 +1,5 @@
 // Configuración inicial del mapa
-const initMap = async () => {
-  // API Key de OpenRouteService (necesitas registrarte en openrouteservice.org)
-  const ORS_API_KEY = "TU_API_KEY_AQUI";
-
+const initMap = () => {
   // Coordenadas de las ciudades
   const BILBAO = {
     name: "Bilbao",
@@ -28,27 +25,6 @@ const initMap = async () => {
     return map.distance(point1, point2) / 1000; // Convertir a kilómetros
   };
 
-  // Función para obtener distancia por carretera
-  const getRoadDistance = async (start, end) => {
-    try {
-      const response = await axios.get(
-        `https://api.openrouteservice.org/v2/directions/driving-car`,
-        {
-          params: {
-            api_key: ORS_API_KEY,
-            start: `${start[1]},${start[0]}`,
-            end: `${end[1]},${end[0]}`,
-          },
-        }
-      );
-
-      return response.data.features[0].properties.segments[0].distance / 1000; // Convertir a kilómetros
-    } catch (error) {
-      console.error("Error al obtener la distancia por carretera:", error);
-      return null;
-    }
-  };
-
   // Función para crear marcadores
   const createMarker = (city) => {
     return L.marker(city.coords)
@@ -60,17 +36,13 @@ const initMap = async () => {
   const bilbaoMarker = createMarker(BILBAO);
   const sanSebastianMarker = createMarker(SAN_SEBASTIAN);
 
-  // Calcular distancias
+  // Calcular distancia
   const straightDistance = calculateStraightDistance(
     BILBAO.coords,
     SAN_SEBASTIAN.coords
   );
-  const roadDistance = await getRoadDistance(
-    BILBAO.coords,
-    SAN_SEBASTIAN.coords
-  );
 
-  // Crear línea entre las ciudades con popup de distancias
+  // Crear línea entre las ciudades
   const routeLine = L.polyline([BILBAO.coords, SAN_SEBASTIAN.coords], {
     color: "#FF4444",
     weight: 3,
@@ -78,30 +50,27 @@ const initMap = async () => {
     dashArray: "10, 10",
   }).addTo(map);
 
-  // Añadir popup con distancias en el centro de la línea
+  // Calcular el centro de la línea
   const center = [
     (BILBAO.coords[0] + SAN_SEBASTIAN.coords[0]) / 2,
     (BILBAO.coords[1] + SAN_SEBASTIAN.coords[1]) / 2,
   ];
 
+  // Crear popup con la distancia (inicialmente no visible)
   const distancePopup = L.popup({
-    permanent: true,
     className: "distance-popup",
-  })
-    .setLatLng(center)
-    .setContent(
-      `
+  }).setLatLng(center).setContent(`
           <div class="distance-info">
               <p><strong>Distancia en línea recta:</strong> ${straightDistance.toFixed(
                 2
               )} km</p>
-              <p><strong>Distancia por carretera:</strong> ${
-                roadDistance ? roadDistance.toFixed(2) : "N/A"
-              } km</p>
           </div>
-      `
-    )
-    .addTo(map);
+      `);
+
+  // Añadir evento de click a la línea
+  routeLine.on("click", function (e) {
+    distancePopup.openOn(map);
+  });
 
   // Ajustar vista para mostrar toda la ruta
   map.fitBounds(routeLine.getBounds(), {
